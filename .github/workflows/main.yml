@@ -4,28 +4,84 @@ on:
   push:
     branches:
       - main
-  pull_request:
 
 jobs:
-  flutter-ci:
-    name: Flutter CI Pipeline
-    runs-on: macos-latest
-
+  flutter_test:
+    name: Run Flutter Test and Analyze
+    runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout the Code
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      # Step 2: Install Flutter
-      - name: Install Flutter
-        uses: subosito/flutter-action@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v1
         with:
-          flutter-version: '3.27.3'
+          java-version: "18.x"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.27.3" # Updated to match your project version
+          channel: "stable"
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
 
-      # Step 3: Fetch Dependencies
-      - name: Install dependencies
-        run: flutter pub get
+  build_apk:
+    name: Generate APK Files
+    needs: [flutter_test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "11.x"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.27.3" # Updated to match your project version
+          channel: "stable"
+      - run: flutter pub get
+      - run: flutter build apk --split-per-abi --release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: apk-release
+          path: |
+            build/app/outputs/apk/release/app-armeabi-v7a-release.apk
+            build/app/outputs/apk/release/app-arm64-v8a-release.apk
+            build/app/outputs/apk/release/app-x86_64-release.apk
 
-      # Step 4: Run Flutter Tests
-      - name: Run tests
-        run: flutter test
+  build_appbundle:
+    name: Generate AppBundle Files
+    needs: [flutter_test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "11.x"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.27.3" # Updated to match your project version
+          channel: "stable"
+      - run: flutter pub get
+      - run: flutter build appbundle
+      - uses: actions/upload-artifact@v3
+        with:
+          name: appbundle-release
+          path: build/app/outputs/bundle/release/app-release.aab
+
+  build_web:
+    name: Build Flutter Web
+    needs: [flutter_test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v1
+        with:
+          java-version: "18.x"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.27.3" # Updated to match your project version
+          channel: "stable"
+      - run: flutter pub get
+      - run: flutter config --enable-web
+      - run: flutter build web
+      - uses: actions/upload-artifact@v3
+        with:
+          name: web-build
+          path: build/web
